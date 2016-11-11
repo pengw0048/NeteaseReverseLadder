@@ -26,6 +26,7 @@ namespace NeteaseReverseLadder
                 if (aproxy.Count == 0)
                 {
                     Console.WriteLine("没有可用代理，重新搜索");
+                    proxy.Stop();
                     goto start;
                 }
                 Console.WriteLine("现在使用的是：" + aproxy[0]);

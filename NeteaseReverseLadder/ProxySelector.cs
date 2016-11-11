@@ -100,6 +100,7 @@ namespace NeteaseReverseLadder
         {
             lock (this)
             {
+                while (Proxies.Count > 0 && Proxies[0].latency==int.MaxValue) Proxies.RemoveAt(0);
                 if (Proxies.Count > 0) Proxies.RemoveAt(0);
             }
         }
