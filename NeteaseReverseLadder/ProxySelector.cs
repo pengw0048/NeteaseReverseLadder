@@ -96,6 +96,13 @@ namespace NeteaseReverseLadder
             }
             return ret;
         }
+        public void RemoveTopProxy()
+        {
+            lock (this)
+            {
+                if (Proxies.Count > 0) Proxies.RemoveAt(0);
+            }
+        }
     }
     class ImpatientWebClient : WebClient
     {

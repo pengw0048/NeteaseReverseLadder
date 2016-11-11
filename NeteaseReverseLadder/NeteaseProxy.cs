@@ -6,6 +6,7 @@ using System.Linq;
 using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using Titanium.Web.Proxy;
 using Titanium.Web.Proxy.EventArguments;
@@ -74,7 +75,7 @@ namespace NeteaseReverseLadder
                     if (e.WebSession.Request.Url.StartsWith("http://music.163.com/eapi/song/enhance/player/url"))
                     {
                         Console.WriteLine("从代理服务器获取歌曲地址");
-                        var proxies = ps.GetTopProxies();
+                        var proxies = ps.GetTopProxies(1);
                         var tasks = new List<Task<byte[]>>();
                         var st = new Stopwatch();
                         st.Start();
@@ -84,7 +85,7 @@ namespace NeteaseReverseLadder
                             {
                                 try
                                 {
-                                    using (var wc = new WebClient())
+                                    using (var wc = new ImpatientWebClient())
                                     {
                                         wc.Proxy = new WebProxy(proxy.host, proxy.port);
                                         foreach (var aheader in head)

@@ -9,6 +9,7 @@ namespace NeteaseReverseLadder
     {
         static void Main(string[] args)
         {
+            start:
             var ps = new ProxySelector();
             while (true)
             {
@@ -18,7 +19,19 @@ namespace NeteaseReverseLadder
             var proxy = new NeteaseProxy(ps);
             proxy.StartProxy();
             Console.WriteLine("请设置网易云音乐代理为127.0.0.1，端口15213");
-            while (true) Console.ReadLine();
+            Console.WriteLine("如果播放失败，按回车切换到下一个代理服务器");
+            while (true)
+            {
+                var aproxy = ps.GetTopProxies(1);
+                if (aproxy.Count == 0)
+                {
+                    Console.WriteLine("没有可用代理，重新搜索");
+                    goto start;
+                }
+                Console.WriteLine("现在使用的是：" + aproxy[0]);
+                Console.ReadLine();
+                ps.RemoveTopProxy();
+            }
         }
         static bool UpdateProxySelector(ProxySelector ps)
         {
