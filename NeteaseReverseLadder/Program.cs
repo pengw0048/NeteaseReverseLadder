@@ -13,8 +13,9 @@ namespace NeteaseReverseLadder
             var ps = new ProxySelector();
             while (true)
             {
-                if (!UpdateProxySelector(ps)) Console.WriteLine("获取代理列表失败，10秒后重试");
+                if (!UpdateProxySelector(ps)) Console.WriteLine("获取代理列表失败，正在重试");
                 else break;
+                ps.ProxyTestTimeout += 5000;
             }
             var proxy = new NeteaseProxy(ps);
             proxy.StartProxy();

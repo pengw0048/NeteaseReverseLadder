@@ -11,6 +11,7 @@ namespace NeteaseReverseLadder
 {
     class ProxySelector
     {
+        public int ProxyTestTimeout = 5000;
         public class Proxy
         {
             public string host;
@@ -65,6 +66,7 @@ namespace NeteaseReverseLadder
                     {
                         using (var wc = new ImpatientWebClient())
                         {
+                            wc.Timeout = ProxyTestTimeout;
                             wc.Proxy = new WebProxy(proxy.host, proxy.port);
                             var sw = new Stopwatch();
                             sw.Start();
@@ -80,7 +82,7 @@ namespace NeteaseReverseLadder
                     catch (Exception) { }
                 }));
             }
-            Task.WaitAll(tasks.ToArray(), 5000);
+            Task.WaitAll(tasks.ToArray(), ProxyTestTimeout);
             newProxies = newProxies.OrderBy(o => o.latency).ToList();
             lock (this)
             {
@@ -107,7 +109,7 @@ namespace NeteaseReverseLadder
     }
     class ImpatientWebClient : WebClient
     {
-        public int Timeout = 5000;
+        public int Timeout = 10000;
         protected override WebRequest GetWebRequest(Uri uri)
         {
             WebRequest w = base.GetWebRequest(uri);

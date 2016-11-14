@@ -70,7 +70,7 @@ namespace NeteaseReverseLadder
             var responseHeaders = e.WebSession.Response.ResponseHeaders;
             if ((e.WebSession.Request.Method == "GET" || e.WebSession.Request.Method == "POST") && e.WebSession.Response.ResponseStatusCode == "200")
             {
-                if (e.WebSession.Response.ContentType != null && e.WebSession.Response.ContentType.Trim().ToLower().Contains("text") || e.WebSession.Request.Url.StartsWith("http://music.163.com/eapi/song/enhance/player/url"))
+                if (e.WebSession.Response.ContentType != null && (e.WebSession.Response.ContentType.Trim().ToLower().Contains("text") || e.WebSession.Response.ContentType.Trim().ToLower().Contains("json")) || e.WebSession.Request.Url.StartsWith("http://music.163.com/eapi/song/enhance/player/url"))
                 {
                     if (e.WebSession.Request.Url.StartsWith("http://music.163.com/eapi/song/enhance/player/url"))
                     {
