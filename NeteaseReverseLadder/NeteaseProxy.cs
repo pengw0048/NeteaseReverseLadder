@@ -113,7 +113,7 @@ namespace NeteaseReverseLadder
                         if (Regex.Match(body, "\"st\":-\\d+").Success)
                         {
                             Console.WriteLine("替换歌曲列表信息");
-                            body = Regex.Replace(body, "\"st\":-\\d+", "\"st\":0");
+                            body = Regex.Replace(body, "\"st\":-100", "\"st\":0");
                             body = body.Replace("\"pl\":0", "\"pl\":320000");
                             body = body.Replace("\"dl\":0", "\"dl\":320000");
                             await e.SetResponseBodyString(body);
