@@ -8,6 +8,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Timers;
 using Titanium.Web.Proxy;
 using Titanium.Web.Proxy.EventArguments;
 using Titanium.Web.Proxy.Models;
@@ -24,6 +25,20 @@ namespace NeteaseReverseLadder
             proxyServer = new ProxyServer();
             proxyServer.TrustRootCertificate = true;
             this.ps = ps;
+            var timer = new System.Timers.Timer();
+            timer.Elapsed += new ElapsedEventHandler(OnTimedEvent);
+            timer.Interval = 5 * 60 * 1000;
+            timer.Enabled = true;
+        }
+
+        private void OnTimedEvent(object source, ElapsedEventArgs e)
+        {
+            lock(this)
+                foreach (var pair in requests)
+                {
+                    if ((DateTime.Now - pair.Value.time).TotalSeconds > 30)
+                        requests.Remove(pair.Key);
+                }
         }
 
         public void StartProxy()
@@ -56,7 +71,9 @@ namespace NeteaseReverseLadder
         {
             if (e.WebSession.Request.Url.StartsWith("http://music.163.com/eapi/song/enhance/") || e.WebSession.Request.Url.StartsWith("http://music.163.com/eapi/song/like"))
             {
-                requests.Add(e.WebSession.RequestId, new RequestInfo() { body = await e.GetRequestBody(), head = e.WebSession.Request.RequestHeaders, time = DateTime.Now });
+                var request = new RequestInfo() { body = await e.GetRequestBody(), head = e.WebSession.Request.RequestHeaders, time = DateTime.Now };
+                lock (this)
+                    requests.Add(e.WebSession.RequestId, request);
             }
 
         }
@@ -87,7 +104,9 @@ namespace NeteaseReverseLadder
                         {
                             using (var wc = new ImpatientWebClient())
                             {
-                                var request = requests[e.WebSession.RequestId];
+                                RequestInfo request;
+                                lock(this)
+                                    request = requests[e.WebSession.RequestId];
                                 requests.Remove(e.WebSession.RequestId);
                                 wc.Proxy = new WebProxy(proxy.host, proxy.port);
                                 foreach (var aheader in request.head)
@@ -101,8 +120,10 @@ namespace NeteaseReverseLadder
                             st.Stop();
                             await e.SetResponseBody(ret);
                             Console.WriteLine("修改完成，用时 " + st.ElapsedMilliseconds + " ms");
+                            lock (this)
+                                requests.Remove(e.WebSession.RequestId);
                         }
-                        catch (Exception) { }
+                        catch (Exception ex) { Console.WriteLine(ex); }
                     }
                     else if (e.WebSession.Request.Url.StartsWith("http://music.163.com/eapi/"))
                     {
