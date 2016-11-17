@@ -54,15 +54,19 @@ namespace NeteaseReverseLadder
         //intecept & cancel, redirect or update requests
         public async Task OnRequest(object sender, SessionEventArgs e)
         {
-            if (e.WebSession.Request.Url.StartsWith("http://music.163.com/eapi/song/enhance/player"))
+            if (e.WebSession.Request.Url.StartsWith("http://music.163.com/eapi/song/enhance/") || e.WebSession.Request.Url.StartsWith("http://music.163.com/eapi/song/like"))
             {
-                body = await e.GetRequestBody();
-                head = e.WebSession.Request.RequestHeaders;
+                requests.Add(e.WebSession.RequestId, new RequestInfo() { body = await e.GetRequestBody(), head = e.WebSession.Request.RequestHeaders, time = DateTime.Now });
             }
 
         }
-        private byte[] body;
-        private Dictionary<string, HttpHeader> head;
+        class RequestInfo
+        {
+            public byte[] body;
+            public Dictionary<string, HttpHeader> head;
+            public DateTime time;
+        }
+        private Dictionary<Guid, RequestInfo> requests = new Dictionary<Guid, RequestInfo>();
         //Modify response
         public async Task OnResponse(object sender, SessionEventArgs e)
         {
@@ -70,42 +74,35 @@ namespace NeteaseReverseLadder
             var responseHeaders = e.WebSession.Response.ResponseHeaders;
             if ((e.WebSession.Request.Method == "GET" || e.WebSession.Request.Method == "POST") && e.WebSession.Response.ResponseStatusCode == "200")
             {
-                if (e.WebSession.Response.ContentType != null && (e.WebSession.Response.ContentType.Trim().ToLower().Contains("text") || e.WebSession.Response.ContentType.Trim().ToLower().Contains("json")) || e.WebSession.Request.Url.StartsWith("http://music.163.com/eapi/song/enhance/player/url"))
+                if (e.WebSession.Response.ContentType != null && (e.WebSession.Response.ContentType.Trim().ToLower().Contains("text") || e.WebSession.Response.ContentType.Trim().ToLower().Contains("json")) || e.WebSession.Request.Url.StartsWith("http://music.163.com/eapi/song/"))
                 {
-                    if (e.WebSession.Request.Url.StartsWith("http://music.163.com/eapi/song/enhance/player/url"))
+                    if (e.WebSession.Request.Url.StartsWith("http://music.163.com/eapi/song/enhance/") || e.WebSession.Request.Url.StartsWith("http://music.163.com/eapi/song/like"))
                     {
-                        Console.WriteLine("从代理服务器获取歌曲地址");
-                        var proxies = ps.GetTopProxies(1);
-                        var tasks = new List<Task<byte[]>>();
+                        Console.WriteLine("从代理服务器获取：" + e.WebSession.Request.Url);
+                        var proxy = ps.GetTopProxies(1)[0];
                         var st = new Stopwatch();
                         st.Start();
-                        foreach (var proxy in proxies)
+                        byte[] ret = null;
+                        try
                         {
-                            tasks.Add(Task<byte[]>.Factory.StartNew(() =>
+                            using (var wc = new ImpatientWebClient())
                             {
-                                try
+                                var request = requests[e.WebSession.RequestId];
+                                requests.Remove(e.WebSession.RequestId);
+                                wc.Proxy = new WebProxy(proxy.host, proxy.port);
+                                foreach (var aheader in request.head)
                                 {
-                                    using (var wc = new ImpatientWebClient())
-                                    {
-                                        wc.Proxy = new WebProxy(proxy.host, proxy.port);
-                                        foreach (var aheader in head)
-                                        {
-                                            var str = aheader.Key.ToLower();
-                                            if (str == "host" || str == "content-length" || str == "accept" || str == "user-agent" || str == "connection") continue;
-                                            wc.Headers.Add(aheader.Key, aheader.Value.Value);
-                                        }
-                                        var ret = wc.UploadData(e.WebSession.Request.Url, body);
-                                        return ret;
-                                    }
+                                    var str = aheader.Key.ToLower();
+                                    if (str == "host" || str == "content-length" || str == "accept" || str == "user-agent" || str == "connection") continue;
+                                    wc.Headers.Add(aheader.Key, aheader.Value.Value);
                                 }
-                                catch (Exception) { }
-                                return new byte[0];
-                            }));
+                                ret = wc.UploadData(e.WebSession.Request.Url, request.body);
+                            }
+                            st.Stop();
+                            await e.SetResponseBody(ret);
+                            Console.WriteLine("修改完成，用时 " + st.ElapsedMilliseconds + " ms");
                         }
-                        var idx = Task.WaitAny(tasks.ToArray());
-                        st.Stop();
-                        await e.SetResponseBody(tasks[idx].Result);
-                        Console.WriteLine("修改完成，用时 " + st.ElapsedMilliseconds + " ms");
+                        catch (Exception) { }
                     }
                     else if (e.WebSession.Request.Url.StartsWith("http://music.163.com/eapi/"))
                     {
@@ -116,6 +113,10 @@ namespace NeteaseReverseLadder
                             body = Regex.Replace(body, "\"st\":-\\d+", "\"st\":0");
                             body = body.Replace("\"pl\":0", "\"pl\":320000");
                             body = body.Replace("\"dl\":0", "\"dl\":320000");
+                            body = body.Replace("\"fl\":0", "\"fl\":320000");
+                            body = body.Replace("\"sp\":0", "\"sp\":7");
+                            body = body.Replace("\"cp\":0", "\"cp\":1");
+                            body = body.Replace("\"subp\":0", "\"subp\":1");
                             await e.SetResponseBodyString(body);
                         }
                     }
