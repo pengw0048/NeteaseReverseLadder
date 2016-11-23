@@ -39,6 +39,7 @@ namespace NeteaseReverseLadder
                     var tds = Regex.Matches(tr.Groups[1].Value, "<td>(.*?)<\\/td>");
                     try
                     {
+                        if(newProxies.Count <= 15)
                         newProxies.Add(new Proxy() { host = tds[0].Groups[1].Value, port = int.Parse(tds[1].Groups[1].Value), latency = int.MaxValue });
                     }
                     catch (Exception) { }
