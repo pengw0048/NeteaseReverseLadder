@@ -93,7 +93,7 @@ namespace NeteaseReverseLadder
             {
                 if (e.WebSession.Response.ContentType != null && (e.WebSession.Response.ContentType.Trim().ToLower().Contains("text") || e.WebSession.Response.ContentType.Trim().ToLower().Contains("json")) || e.WebSession.Request.Url.StartsWith("http://music.163.com/eapi/song/"))
                 {
-                    if (e.WebSession.Request.Url.StartsWith("http://music.163.com/eapi/song/enhance/") || e.WebSession.Request.Url.StartsWith("http://music.163.com/eapi/song/like"))
+                    if (e.WebSession.Request.Url.Contains("music.163.com/eapi/song/enhance/") || e.WebSession.Request.Url.Contains("music.163.com/eapi/song/like"))
                     {
                         Console.WriteLine("从代理服务器获取：" + e.WebSession.Request.Url);
                         var proxy = ps.GetTopProxies(1)[0];
@@ -125,7 +125,7 @@ namespace NeteaseReverseLadder
                         }
                         catch (Exception ex) { Console.WriteLine(ex); }
                     }
-                    else if (e.WebSession.Request.Url.StartsWith("http://music.163.com/eapi/"))
+                    else if (e.WebSession.Request.Url.Contains("music.163.com/eapi/"))
                     {
                         var body = await e.GetResponseBodyAsString();
                         if (Regex.Match(body, "\"st\":-\\d+").Success)
