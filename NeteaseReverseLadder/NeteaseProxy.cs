@@ -1,12 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
-using System.Linq;
 using System.Net;
-using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading;
 using System.Threading.Tasks;
 using System.Timers;
 using Titanium.Web.Proxy;
@@ -22,10 +18,12 @@ namespace NeteaseReverseLadder
 
         public NeteaseProxy(ProxySelector ps)
         {
-            proxyServer = new ProxyServer();
-            proxyServer.TrustRootCertificate = true;
+            proxyServer = new ProxyServer
+            {
+                TrustRootCertificate = true
+            };
             this.ps = ps;
-            var timer = new System.Timers.Timer();
+            var timer = new Timer();
             timer.Elapsed += new ElapsedEventHandler(OnTimedEvent);
             timer.Interval = 5 * 60 * 1000;
             timer.Enabled = true;
@@ -46,10 +44,7 @@ namespace NeteaseReverseLadder
             proxyServer.BeforeRequest += OnRequest;
             proxyServer.BeforeResponse += OnResponse;
 
-            var explicitEndPoint = new ExplicitProxyEndPoint(IPAddress.Any, 15213, true)
-            {
-                // ExcludedHttpsHostNameRegex = new List<string>() { "google.com", "dropbox.com" }
-            };
+            var explicitEndPoint = new ExplicitProxyEndPoint(IPAddress.Any, 15213, true);
 
             proxyServer.AddEndPoint(explicitEndPoint);
             proxyServer.Start();
@@ -65,11 +60,10 @@ namespace NeteaseReverseLadder
 
             proxyServer.Stop();
         }
-
-        //intecept & cancel, redirect or update requests
+        
         public async Task OnRequest(object sender, SessionEventArgs e)
         {
-            if (e.WebSession.Request.Url.StartsWith("http://music.163.com/eapi/song/enhance/") || e.WebSession.Request.Url.StartsWith("http://music.163.com/eapi/song/like"))
+            if (e.WebSession.Request.Url.Contains("music.163.com/eapi/song/enhance") || e.WebSession.Request.Url.Contains("music.163.com/eapi/song/like"))
             {
                 var request = new RequestInfo() { body = await e.GetRequestBody(), head = e.WebSession.Request.RequestHeaders, time = DateTime.Now };
                 lock (this)
@@ -91,12 +85,12 @@ namespace NeteaseReverseLadder
             var responseHeaders = e.WebSession.Response.ResponseHeaders;
             if ((e.WebSession.Request.Method == "GET" || e.WebSession.Request.Method == "POST") && e.WebSession.Response.ResponseStatusCode == "200")
             {
-                if (e.WebSession.Response.ContentType != null && (e.WebSession.Response.ContentType.Trim().ToLower().Contains("text") || e.WebSession.Response.ContentType.Trim().ToLower().Contains("json")) || e.WebSession.Request.Url.StartsWith("http://music.163.com/eapi/song/"))
+                if (e.WebSession.Response.ContentType != null && (e.WebSession.Response.ContentType.Trim().ToLower().Contains("text") || e.WebSession.Response.ContentType.Trim().ToLower().Contains("json")) || e.WebSession.Request.Url.Contains("music.163.com/eapi/song"))
                 {
-                    if (e.WebSession.Request.Url.Contains("music.163.com/eapi/song/enhance/") || e.WebSession.Request.Url.Contains("music.163.com/eapi/song/like"))
+                    if (e.WebSession.Request.Url.Contains("music.163.com/eapi/song/enhance") || e.WebSession.Request.Url.Contains("music.163.com/eapi/song/like"))
                     {
                         Console.WriteLine("从代理服务器获取：" + e.WebSession.Request.Url);
-                        var proxy = ps.GetTopProxies(1)[0];
+                        var proxy = ps.GetTopProxy();
                         var st = new Stopwatch();
                         st.Start();
                         byte[] ret = null;
@@ -115,7 +109,7 @@ namespace NeteaseReverseLadder
                                     if (str == "host" || str == "content-length" || str == "accept" || str == "user-agent" || str == "connection") continue;
                                     wc.Headers.Add(aheader.Key, aheader.Value.Value);
                                 }
-                                ret = wc.UploadData(e.WebSession.Request.Url, request.body);
+                                ret = wc.UploadData(e.WebSession.Request.Url.Replace("https://", "http://"), request.body);
                             }
                             st.Stop();
                             await e.SetResponseBody(ret);
