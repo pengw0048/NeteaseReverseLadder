@@ -69,7 +69,7 @@ namespace NeteaseReverseLadder
                 if (e.WebSession.Request.Url.Contains("music.163.com/eapi/song/enhance") || e.WebSession.Request.Url.Contains("music.163.com/eapi/song/like"))
                 {
                     Console.WriteLine("从代理服务器获取：" + e.WebSession.Request.Url);
-                    var proxy = proxySelector.GetTopProxy();
+                    var proxy = proxySelector.GetTop();
                     var st = new Stopwatch();
                     st.Start();
                     byte[] ret = null;

@@ -4,12 +4,14 @@ using System.Diagnostics;
 using System.Linq;
 using System.Net;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 
 namespace NeteaseReverseLadder
 {
     class ProxySelector
     {
         public int ProxyTestTimeout = 5000;
+        public int parallelism = 5;
         public class Proxy
         {
             public string host;
@@ -44,48 +46,58 @@ namespace NeteaseReverseLadder
                     var tds = Regex.Matches(tr.Groups[1].Value, "<td>(.*?)<\\/td>");
                     try
                     {
-                        if (newProxies.Count < 10)
                         newProxies.Add(new Proxy() { host = tds[0].Groups[1].Value, port = int.Parse(tds[1].Groups[1].Value), latency = int.MaxValue });
                     }
                     catch (Exception) { }
                 }
             }
-            Proxies = newProxies;
+            lock (this)
+                Proxies = newProxies;
         }
         public void UpdateLatency()
         {
+            var actions = new List<Action>();
             foreach (var proxy in Proxies)
             {
-                var latency = int.MaxValue;
-                try
+                actions.Add(() =>
                 {
-                    using (var wc = new ImpatientWebClient(ProxyTestTimeout))
+                    var latency = int.MaxValue;
+                    try
                     {
-                        wc.Proxy = new WebProxy(proxy.host, proxy.port);
-                        var sw = new Stopwatch();
-                        sw.Start();
-                        var ret = wc.DownloadString("http://music.163.com/about");
-                        sw.Stop();
-                        if (ret.Contains("music.126"))
+                        using (var wc = new ImpatientWebClient(ProxyTestTimeout))
                         {
-                            latency = (int)sw.ElapsedMilliseconds;
+                            wc.Proxy = new WebProxy(proxy.host, proxy.port);
+                            var sw = new Stopwatch();
+                            sw.Start();
+                            var ret = wc.DownloadString("http://music.163.com/about");
+                            sw.Stop();
+                            if (ret.Contains("music.126"))
+                            {
+                                latency = (int)sw.ElapsedMilliseconds;
+                            }
+                        }
+                        lock (this)
+                        {
+                            proxy.latency = latency;
+                            proxy.valid = latency != int.MaxValue;
                         }
                     }
-                    proxy.latency = latency;
-                    proxy.valid = latency != int.MaxValue;
-                }
-                catch (Exception) { }
-                Console.WriteLine(proxy);
+                    catch (Exception) { }
+                    Console.WriteLine(proxy);
+                });
             }
+            Parallel.Invoke(new ParallelOptions { MaxDegreeOfParallelism = parallelism }, actions.ToArray());
             Proxies = Proxies.OrderBy(o => o.latency).ToList();
         }
-        public Proxy GetTopProxy()
+        public Proxy GetTop()
         {
-            return Proxies.FirstOrDefault();
+            lock(this)
+                return Proxies.Where(p => p.valid).OrderBy(p => p.latency).FirstOrDefault();
         }
-        public void RemoveTopProxy()
+        public void Remove(Proxy proxy)
         {
-            if (Proxies.Count > 0) Proxies.RemoveAt(0);
+            lock(this)
+                Proxies.Remove(proxy);
         }
     }
     class ImpatientWebClient : WebClient

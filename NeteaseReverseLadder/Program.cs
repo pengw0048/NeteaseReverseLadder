@@ -19,7 +19,7 @@ namespace NeteaseReverseLadder
             Console.WriteLine("如果播放失败，按回车切换到下一个代理服务器");
             while (true)
             {
-                var aproxy = ps.GetTopProxy();
+                var aproxy = ps.GetTop();
                 if (aproxy == null)
                 {
                     Console.WriteLine("没有可用代理，重新搜索");
@@ -28,7 +28,7 @@ namespace NeteaseReverseLadder
                 }
                 Console.WriteLine("现在使用的是：" + aproxy);
                 Console.ReadLine();
-                ps.RemoveTopProxy();
+                ps.Remove(aproxy);
             }
         }
         static bool UpdateProxySelector(ProxySelector ps)
