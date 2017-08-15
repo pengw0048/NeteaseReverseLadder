@@ -97,8 +97,9 @@ namespace NeteaseReverseLadder
         }
         protected override WebRequest GetWebRequest(Uri uri)
         {
-            WebRequest w = base.GetWebRequest(uri);
+            var w = (HttpWebRequest)base.GetWebRequest(uri);
             w.Timeout = Timeout;
+            w.ReadWriteTimeout = Timeout;
             return w;
         }
     }
