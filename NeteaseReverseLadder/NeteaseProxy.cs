@@ -12,14 +12,8 @@ namespace NeteaseReverseLadder
 {
     class NeteaseProxy
     {
-        class RequestInfo
-        {
-            public byte[] body;
-            public Dictionary<string, HttpHeader> head;
-        }
         private ProxyServer proxyServer;
         public ProxySelector proxySelector;
-        private Cache<Guid, RequestInfo> cache = new Cache<Guid, RequestInfo>();
 
         public NeteaseProxy(ProxySelector proxySelector)
         {
@@ -54,11 +48,6 @@ namespace NeteaseReverseLadder
 
         public async Task OnRequest(object sender, SessionEventArgs e)
         {
-            if (e.WebSession.Request.Url.Contains("music.163.com/eapi/song/enhance") || e.WebSession.Request.Url.Contains("music.163.com/eapi/song/like"))
-            {
-                var request = new RequestInfo() { body = await e.GetRequestBody(), head = e.WebSession.Request.RequestHeaders };
-                cache.Put(e.WebSession.RequestId, request);
-            }
         }
 
         public async Task OnResponse(object sender, SessionEventArgs e)
@@ -77,15 +66,14 @@ namespace NeteaseReverseLadder
                     {
                         using (var wc = new ImpatientWebClient())
                         {
-                            var request = cache.Get(e.WebSession.RequestId);
                             wc.Proxy = new WebProxy(proxy.host, proxy.port);
-                            foreach (var aheader in request.head)
+                            foreach (var aheader in e.WebSession.Request.RequestHeaders)
                             {
                                 var str = aheader.Key.ToLower();
                                 if (str == "host" || str == "content-length" || str == "accept" || str == "user-agent" || str == "connection") continue;
                                 wc.Headers.Add(aheader.Key, aheader.Value.Value);
                             }
-                            ret = wc.UploadData(e.WebSession.Request.Url.Replace("https://", "http://"), request.body);
+                            ret = wc.UploadData(e.WebSession.Request.Url.Replace("https://", "http://"), await e.GetRequestBody());
                         }
                         st.Stop();
                         await e.SetResponseBody(ret);
