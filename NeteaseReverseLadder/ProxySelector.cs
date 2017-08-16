@@ -25,7 +25,7 @@ namespace NeteaseReverseLadder
             }
         }
         public List<Proxy> Proxies;
-        public void UpdateProxyList()
+        public void UpdateList()
         {
             var newProxies = new List<Proxy>();
             var ret = "";
@@ -56,8 +56,9 @@ namespace NeteaseReverseLadder
         }
         public void UpdateLatency()
         {
+            var newProxies = Proxies.Select(p => new Proxy { host = p.host, port = p.port }).ToList();
             var actions = new List<Action>();
-            foreach (var proxy in Proxies)
+            foreach (var proxy in newProxies)
             {
                 actions.Add(() =>
                 {
@@ -87,7 +88,8 @@ namespace NeteaseReverseLadder
                 });
             }
             Parallel.Invoke(new ParallelOptions { MaxDegreeOfParallelism = parallelism }, actions.ToArray());
-            Proxies = Proxies.OrderBy(o => o.latency).ToList();
+            lock(this)
+                Proxies = newProxies.Where(p => p.valid).OrderBy(p => p.latency).ToList();
         }
         public Proxy GetTop()
         {

@@ -23,14 +23,11 @@ namespace NeteaseReverseLadder
             this.proxySelector = proxySelector;
         }
 
-        public void StartProxy()
+        public void Start()
         {
             proxyServer.BeforeRequest += OnRequest;
             proxyServer.BeforeResponse += OnResponse;
-
-            var explicitEndPoint = new ExplicitProxyEndPoint(IPAddress.Any, 15213, true);
-
-            proxyServer.AddEndPoint(explicitEndPoint);
+            proxyServer.AddEndPoint(new ExplicitProxyEndPoint(IPAddress.Any, 15213, true));
             proxyServer.Start();
 
             foreach (var endPoint in proxyServer.ProxyEndPoints)
