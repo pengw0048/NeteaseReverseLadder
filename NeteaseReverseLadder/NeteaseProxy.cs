@@ -58,9 +58,9 @@ namespace NeteaseReverseLadder
                         wc.Proxy = new WebProxy(proxy.host, proxy.port);
                         foreach (var aheader in e.WebSession.Request.RequestHeaders)
                         {
-                            var str = aheader.Key.ToLower();
+                            var str = aheader.Name.ToLower();
                             if (str == "host" || str == "content-length" || str == "accept" || str == "user-agent" || str == "connection") continue;
-                            wc.Headers.Add(aheader.Key, aheader.Value.Value);
+                            wc.Headers.Add(aheader.Name, aheader.Value);
                         }
                         ret = wc.UploadData(e.WebSession.Request.Url.Replace("https://", "http://"), await e.GetRequestBody());
                     }
