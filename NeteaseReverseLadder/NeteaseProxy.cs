@@ -1,5 +1,9 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
+using System.IO.Compression;
+using System.Linq;
 using System.Net;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -11,6 +15,8 @@ namespace NeteaseReverseLadder
 {
     class NeteaseProxy
     {
+        private static string[] toFetch = { "music.163.com/eapi/v1/playlist/manipulate/tracks", "music.163.com/eapi/song/enhance", "music.163.com/eapi/song/like" };
+
         private ProxyServer proxyServer;
         public ProxySelector proxySelector;
 
@@ -44,7 +50,7 @@ namespace NeteaseReverseLadder
 
         public async Task OnRequest(object sender, SessionEventArgs e)
         {
-            if (e.WebSession.Request.Url.Contains("music.163.com/eapi/song/enhance") || e.WebSession.Request.Url.Contains("music.163.com/eapi/song/like"))
+            if (toFetch.Any(str => e.WebSession.Request.Url.Contains(str)))
             {
                 Console.WriteLine("从代理服务器获取：" + e.WebSession.Request.Url);
                 var proxy = proxySelector.GetTop();
@@ -52,7 +58,6 @@ namespace NeteaseReverseLadder
                 st.Start();
                 try
                 {
-                    byte[] ret = null;
                     using (var wc = new ImpatientWebClient())
                     {
                         wc.Proxy = new WebProxy(proxy.host, proxy.port);
@@ -62,10 +67,24 @@ namespace NeteaseReverseLadder
                             if (str == "host" || str == "content-length" || str == "accept" || str == "user-agent" || str == "connection") continue;
                             wc.Headers.Add(aheader.Name, aheader.Value);
                         }
-                        ret = wc.UploadData(e.WebSession.Request.Url.Replace("https://", "http://"), await e.GetRequestBody());
+                        var body = wc.UploadData(e.WebSession.Request.Url, await e.GetRequestBody());
+                        try
+                        {
+                            // HACK: WebClient似乎在服务器返回Chunked + GZip的时候，只能读出Unchunked的结果，不会自动UnGZip。
+                            // 正确的解决方法是让WebClient做两种解码。暂时没有找到方法。
+                            // 尝试手动解GZip。这对网易云音乐应该暂时可以得到正确的结果，但一般来说不是最好的解决方法。
+                            // （例如，服务器恰巧返回了一个gzip文件，那么我们不应该解压它）
+                            body = Decompress(body);
+                        }
+                        catch (Exception) { }
+                        var headers = new Dictionary<string, HttpHeader>();
+                        foreach (var key in wc.ResponseHeaders.AllKeys)
+                        {
+                            headers.Add(key, new HttpHeader(key, wc.ResponseHeaders[key]));
+                        }
+                        await e.Ok(body, headers);
                     }
                     st.Stop();
-                    await e.Ok(ret);
                     Console.WriteLine("修改完成，用时 " + st.ElapsedMilliseconds + " ms");
                 }
                 catch (Exception ex) { Console.WriteLine(ex); }
@@ -90,6 +109,17 @@ namespace NeteaseReverseLadder
                     body = body.Replace("\"subp\":0", "\"subp\":1");
                     await e.SetResponseBodyString(body);
                 }
+            }
+        }
+
+        static byte[] Decompress(byte[] data)
+        {
+            using (var compressedStream = new MemoryStream(data))
+            using (var zipStream = new GZipStream(compressedStream, CompressionMode.Decompress))
+            using (var resultStream = new MemoryStream())
+            {
+                zipStream.CopyTo(resultStream);
+                return resultStream.ToArray();
             }
         }
     }
