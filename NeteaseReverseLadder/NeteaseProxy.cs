@@ -23,7 +23,7 @@ namespace NeteaseReverseLadder
         {
             proxyServer = new ProxyServer
             {
-                TrustRootCertificate = true
+                TrustRootCertificate = false
             };
             this.proxySelector = proxySelector;
         }
