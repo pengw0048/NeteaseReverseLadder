@@ -20,8 +20,8 @@ namespace NeteaseReverseLadder
             public bool valid;
             public override string ToString()
             {
-                if (valid) return String.Format("{0}:{1} [{2}ms]", host, port, latency);
-                else return String.Format("{0}:{1} [x]", host, port, latency);
+                if (valid) return string.Format("{0}:{1} [{2}ms]", host, port, latency);
+                else return string.Format("{0}:{1} [x]", host, port, latency);
             }
         }
         public List<Proxy> Proxies;
@@ -30,27 +30,24 @@ namespace NeteaseReverseLadder
             var newProxies = new List<Proxy>();
             var ret = "";
             using (var wc = new ImpatientWebClient())
-                ret = wc.DownloadString("http://cn-proxy.com/");
-            var tables = Regex.Matches(ret, "<table class=\"sortable\">.+?<tbody>(.*?)<\\/tbody>", RegexOptions.Singleline);
-            var first = true;
-            foreach (Match mat in tables)
-            {
-                if (first)
-                {
-                    first = false;
-                    continue;
-                }
-                var trs = Regex.Matches(mat.Groups[1].Value, "<tr>(.*?)<\\/tr>", RegexOptions.Singleline);
+                ret = wc.DownloadString("https://cn-proxy.com/");
+                var trs = Regex.Matches(ret, "<tr>(.*?)<\\/tr>", RegexOptions.Singleline);
                 foreach (Match tr in trs)
                 {
                     var tds = Regex.Matches(tr.Groups[1].Value, "<td>(.*?)<\\/td>");
-                    try
+                if (tds.Count > 2)
+                {
+                    var host = tds[0].Groups[1].Value;
+                    if (Regex.IsMatch(host, @"\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}"))
                     {
-                        newProxies.Add(new Proxy() { host = tds[0].Groups[1].Value, port = int.Parse(tds[1].Groups[1].Value), latency = int.MaxValue });
+                        if (int.TryParse(tds[1].Groups[1].Value, out var port))
+                        {
+                            newProxies.Add(new Proxy() { host=host, port=port, latency = int.MaxValue });
+                        }
                     }
-                    catch (Exception) { }
                 }
-            }
+                        
+                }
             lock (this)
                 Proxies = newProxies;
         }
@@ -70,7 +67,7 @@ namespace NeteaseReverseLadder
                             wc.Proxy = new WebProxy(proxy.host, proxy.port);
                             var sw = new Stopwatch();
                             sw.Start();
-                            var ret = wc.DownloadString("http://music.163.com/about");
+                            var ret = wc.DownloadString("https://music.163.com/about");
                             sw.Stop();
                             if (ret.Contains("music.126"))
                             {
@@ -82,12 +79,17 @@ namespace NeteaseReverseLadder
                             proxy.latency = latency;
                             proxy.valid = latency != int.MaxValue;
                         }
+                        Console.WriteLine("{0}: OK", proxy);
                     }
-                    catch (Exception) { }
-                    Console.WriteLine(proxy);
+                    catch (Exception e) {
+                        Console.WriteLine("{0}: {1}", proxy, e.Message);
+                    }
                 });
             }
             Parallel.Invoke(new ParallelOptions { MaxDegreeOfParallelism = parallelism }, actions.ToArray());
+            newProxies = newProxies.Where(p => p.valid).OrderBy(p => p.latency).ToList();
+            Console.WriteLine("Available proxies: ");
+            newProxies.ForEach(p => Console.WriteLine(p));
             lock(this)
                 Proxies = newProxies.Where(p => p.valid).OrderBy(p => p.latency).ToList();
         }
