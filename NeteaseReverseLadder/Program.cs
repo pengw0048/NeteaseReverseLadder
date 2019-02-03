@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Text;
+using System.Threading;
 
 namespace NeteaseReverseLadder
 {
@@ -7,12 +9,12 @@ namespace NeteaseReverseLadder
         static void Main(string[] args)
         {
             start:
+            Console.OutputEncoding = Encoding.UTF8;
             var ps = new ProxySelector();
-            if (!UpdateProxySelector(ps))
+            while (!UpdateProxySelector(ps))
             {
                 Console.WriteLine("Failed retriving proxy list");
                 Console.ReadLine();
-                return;
             }
             var proxy = new NeteaseProxy(ps);
             proxy.Start();
